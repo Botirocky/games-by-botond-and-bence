@@ -1,32 +1,32 @@
-import random
-import time
+import pygame
 
-min_ertek = 1
-max_ertek = 6
+pygame.init()
 
-max_ertek_valasz = input("Hany oldalu legyen a dobokocka? (alapertelmezett = 6) ")
- 
-if max_ertek_valasz != "" and max_ertek_valasz.isnumeric ():
-    max_ertek = int(max_ertek_valasz)
+SCREEN_WIDTH = 1000
+SCREEN_HEIGHT = 500
 
-def dobokocka_eldobasa():
-    return random.randint(min_ertek, max_ertek)
+# Ablak létrehozása
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Feed the dog")
 
-def betoltes():
-     print("Dobokocka eldobasa:")
-     time.sleep(0.5)
-    
+# Színek
+BLACK = (0, 0, 0)
 
-while True:
-        valasz = input("Eldobjuk a dobokockat? [i/n] ")
-        
-        if valasz == "i":
-             betoltes()
-             print(dobokocka_eldobasa())
-        elif valasz =="n":
-            print("Viszlat...")
-            break
-        else:
-             print("Invalid bevitel! [i/n] ")
+# Időzítő
+clock = pygame.time.Clock()
+FPS = 60
 
- 
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # Fekete háttér kirajzolása
+    screen.fill(BLACK)
+
+    # Frissítés
+    pygame.display.update()
+    clock.tick(FPS)
+
+pygame.quit()
