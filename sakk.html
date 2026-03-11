@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<title>Profi 1v1 Webes Sakk</title>
+
+<style>
+body{
+    margin:0;
+    background:#222;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    font-family:Arial;
+}
+
+h1{color:white;margin-top:10px;}
+#status{color:white;margin:10px;font-size:20px;}
+#board{
+    display:grid;
+    grid-template-columns:repeat(8,80px);
+    grid-template-rows:repeat(8,80px);
+    box-shadow:0 0 20px black;
+}
+.square{
+    width:80px;
+    height:80px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:48px;
+    cursor:pointer;
+    transition:0.2s;
+}
+.white{background:#f0d9b5;}
+.black{background:#b58863;}
+.selected{outline:4px solid red;}
+.move{background:#8aff8a !important;}
+.check{outline:4px solid crimson;}
+.fade{opacity:0; transition:0.3s;}
+
+#reset{
+    margin:10px;
+    padding:10px 20px;
+    font-size:18px;
+    cursor:pointer;
+}
+
+#promotion{
+    display:none;
+    position:absolute;
+    background:#333;
+    padding:10px;
+    border:2px solid white;
+}
+
+.promoPiece{
+    font-size:40px;
+    margin:5px;
+    cursor:pointer;
+}
+.promoPiece:hover{
+    transform:scale(1.2);
+}
+</style>
+</head>
+
+<body>
+
+<h1>Profi 1v1 Sakk</h1>
+<div id="status">Fehér lép</div>
+<button id="reset">Új játék</button>
+<div id="board"></div>
+<div id="promotion"></div>
+
+<script>
+const boardElement=document.getElementById("board");
+const statusText=document.getElementById("status");
+const resetBtn=document.getElementById("reset");
+const promotionDiv=document.getElementById("promotion");
+
+const pieces={
+'r':'♜','n':'♞','b':'♝','q':'♛','k':'♚','p':'♟',
+'R':'♖','N':'♘','B':'♗','Q':'♕','K':'♔','P':'♙'
+};
+
+let board,turn,selected,possibleMoves,gameOver;
+
+function init(){
+board=[
+['r','n','b','q','k','b','n','r'],
+['p','p','p','p','p','p','p','p'],
+['','','','','','','',''],
+['','','','','','','',''],
+['','','','','','','',''],
+['','','','','','','',''],
+['P','P','P','P','P','P','P','P'],
+['R','N','B','Q','K','B','N','R']
+];
+turn="white";
+selected=null;
+possibleMoves=[];
+gameOver=false;
+statusText.textContent="Fehér lép";
+draw();
+}
+
+function draw(){
+boardElement.innerHTML="";
+for(let r=0;r<8;r++){
+for(let c=0;c<8;c++){
+let sq=document.createElement("div");
+sq.className="square "+((r+c)%2==0?"white":"black");
+sq.dataset.r=r;
+sq.dataset.c=c;
+let piece=board[r][c];
+if(piece) sq.textContent=pieces[piece];
+if(selected && selected.r==r && selected.c==c) sq.classList.add("selected");
+if(possibleMoves.some(m=>m[0]==r&&m[1]==c)) sq.classList.add("move");
+if(inCheck("white") && board[r][c]=="K") sq.classList.add("check");
+if(inCheck("black") && board[r][c]=="k") sq.classList.add("check");
+sq.onclick=()=>clickSquare(r,c);
+boardElement.appendChild(sq);
+}
+}
+}
+
+function clickSquare(r,c){
+if(gameOver)return;
+let piece=board[r][c];
+
+if(selected){
+if(possibleMoves.some(m=>m[0]==r&&m[1]==c)){
+movePiece(selected.r,selected.c,r,c);
+selected=null;
+possibleMoves=[];
+turn=turn=="white"?"black":"white";
+statusText.textContent=(turn=="white"?"Fehér":"Fekete")+" lép";
+if(checkMate(turn)){
+statusText.textContent="MATT! "+(turn=="white"?"Fekete":"Fehér")+" nyert!";
+gameOver=true;
+}
+draw();
+return;
+}
+selected=null;
+possibleMoves=[];
+draw();
+return;
+}
+
+if(piece && ((turn=="white"&&isWhite(piece))||(turn=="black"&&isBlack(piece)))){
+selected={r,c};
+possibleMoves=getMoves(r,c);
+draw();
+}
+}
+
+function movePiece(r1,c1,r2,c2){
+let piece=board[r1][c1];
+let captured=board[r2][c2];
+board[r2][c2]=piece;
+board[r1][c1]='';
+if(captured){
+let idx=r2*8+c2;
+boardElement.children[idx].classList.add("fade");
+}
+if(piece=='P' && r2==0) promotion(r2,c2,"white");
+if(piece=='p' && r2==7) promotion(r2,c2,"black");
+}
+
+function promotion(r,c,color){
+promotionDiv.style.display="flex";
+promotionDiv.style.left=(c*80)+"px";
+promotionDiv.style.top=(r*80)+"px";
+promotionDiv.innerHTML="";
+let options=color=="white"?['Q','R','B','N']:['q','r','b','n'];
+options.forEach(p=>{
+let d=document.createElement("div");
+d.className="promoPiece";
+d.textContent=pieces[p];
+d.onclick=()=>{
+board[r][c]=p;
+promotionDiv.style.display="none";
+draw();
+};
+promotionDiv.appendChild(d);
+});
+}
+
+function isWhite(p){return p==p.toUpperCase();}
+function isBlack(p){return p==p.toLowerCase();}
+function inBounds(r,c){return r>=0&&r<8&&c>=0&&c<8;}
+
+function getMoves(r,c){
+let p=board[r][c];
+let moves=[];
+let dir=isWhite(p)?-1:1;
+
+if(p.toLowerCase()=="p"){
+if(inBounds(r+dir,c)&&board[r+dir][c]=='') moves.push([r+dir,c]);
+for(let dc of [-1,1]){
+if(inBounds(r+dir,c+dc)&&board[r+dir][c+dc]!=''&&isWhite(board[r+dir][c+dc])!=isWhite(p))
+moves.push([r+dir,c+dc]);
+}
+}
+
+if("nN".includes(p)){
+[[2,1],[1,2],[-1,2],[-2,1],[-2,-1],[-1,-2],[1,-2],[2,-1]].forEach(([dr,dc])=>{
+let nr=r+dr,nc=c+dc;
+if(inBounds(nr,nc)&&(board[nr][nc]==''||isWhite(board[nr][nc])!=isWhite(p)))
+moves.push([nr,nc]);
+});
+}
+
+if("bBqQrR".includes(p)){
+let dirs=[];
+if("bBqQ".includes(p)) dirs.push([1,1],[1,-1],[-1,1],[-1,-1]);
+if("rRqQ".includes(p)) dirs.push([1,0],[-1,0],[0,1],[0,-1]);
+dirs.forEach(([dr,dc])=>{
+let nr=r+dr,nc=c+dc;
+while(inBounds(nr,nc)){
+if(board[nr][nc]==''){moves.push([nr,nc]);}
+else{
+if(isWhite(board[nr][nc])!=isWhite(p)) moves.push([nr,nc]);
+break;
+}
+nr+=dr; nc+=dc;
+}
+});
+}
+
+if("kK".includes(p)){
+for(let dr=-1;dr<=1;dr++)
+for(let dc=-1;dc<=1;dc++)
+if(dr||dc){
+let nr=r+dr,nc=c+dc;
+if(inBounds(nr,nc)&&(board[nr][nc]==''||isWhite(board[nr][nc])!=isWhite(p)))
+moves.push([nr,nc]);
+}
+}
+
+return moves;
+}
+
+function findKing(color){
+for(let r=0;r<8;r++)
+for(let c=0;c<8;c++)
+if(board[r][c]==(color=="white"?'K':'k'))
+return [r,c];
+}
+
+function inCheck(color){
+let king=findKing(color);
+for(let r=0;r<8;r++)
+for(let c=0;c<8;c++){
+let p=board[r][c];
+if(p!=''&&isWhite(p)!=(color=="white")){
+if(getMoves(r,c).some(m=>m[0]==king[0]&&m[1]==king[1]))
+return true;
+}
+}
+return false;
+}
+
+function checkMate(color){
+if(!inCheck(color)) return false;
+for(let r=0;r<8;r++)
+for(let c=0;c<8;c++){
+let p=board[r][c];
+if(p!=''&&((color=="white"&&isWhite(p))||(color=="black"&&isBlack(p)))){
+if(getMoves(r,c).length>0) return false;
+}
+}
+return true;
+}
+
+resetBtn.onclick=init;
+init();
+</script>
+
+</body>
+</html>
